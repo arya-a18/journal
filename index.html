@@ -1,0 +1,978 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1a0b0f">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Journal">
+<title>Midnight Pages</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pirata+One&family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600&family=Caveat:wght@400;600&family=Dancing+Script&family=Homemade+Apple&family=Indie+Flower&family=Kalam&family=Shadows+Into+Light&family=La+Belle+Aurore&family=Patrick+Hand&display=swap" rel="stylesheet">
+<style>
+:root{
+  --gold:#c9a35f; --gold-hi:#f0d79a; --gold-lo:#8a6326;
+  --bone:#efe6d6; --muted:#b9a79f;
+  --panel:#1f1215; --panel-2:#2c1a1f; --line-soft:rgba(201,163,95,.28);
+  --danger:#e07a8f;
+  --ui:'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  color-scheme: dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;overflow:hidden;overscroll-behavior:none}
+body{
+  font-family:var(--ui); color:var(--bone); -webkit-tap-highlight-color:transparent;
+  background:radial-gradient(120% 85% at 50% 42%, #2b1519 0%, #150a0d 55%, #060203 100%);
+}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--gold-hi);outline-offset:2px}
+
+#app{position:fixed;inset:0;display:grid;grid-template-rows:auto minmax(0,1fr) auto;grid-template-columns:minmax(0,1fr);
+  padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)}
+
+/* bars */
+.bar{display:flex;align-items:center;gap:8px;padding:10px 12px;min-height:56px;min-width:0;overflow:hidden}
+#topbar{justify-content:center}
+#bottombar{justify-content:center;gap:10px}
+.spacer{flex:1}
+.btn{display:inline-flex;align-items:center;gap:7px;background:rgba(255,255,255,.03);border:1px solid var(--line-soft);
+  border-radius:999px;padding:7px 14px;font-size:17px;font-weight:600;letter-spacing:.01em;cursor:pointer;white-space:nowrap;line-height:1.1;transition:background .15s,border-color .15s}
+.btn:hover{background:rgba(201,163,95,.10);border-color:rgba(201,163,95,.55)}
+.btn svg{width:17px;height:17px;flex:none}
+.btn.primary{background:linear-gradient(135deg,#f3dc9b,#c19347 55%,#e6c47f);color:#2a0d12;border-color:transparent}
+.btn.primary:hover{filter:brightness(1.06)}
+.btn.icon{padding:7px 10px}
+.btn[hidden]{display:none}
+.sync-dot{width:34px;height:34px;border-radius:50%;border:1px solid var(--line-soft);background:transparent;display:grid;place-items:center;cursor:pointer}
+.sync-dot i{width:9px;height:9px;border-radius:50%;background:#6b5a55;display:block}
+.sync-dot[data-k="on"] i{background:var(--gold-hi);box-shadow:0 0 8px rgba(240,215,154,.8)}
+.sync-dot[data-k="off"] i{background:#7c6a64}
+.sync-dot[data-k="out"] i{background:transparent;border:1.5px solid var(--gold)}
+.sync-dot[data-k="local"] i{background:transparent;border:1.5px dashed #8c7a74}
+@media (max-width:440px){ #topbar .btn.page-only svg{display:none} .btn{padding:7px 12px} .bar{gap:6px;padding:8px} }
+@media (max-width:380px){ .btn .lbl-long{display:none} .btn{padding:6px 10px;font-size:16px} .bar{gap:5px;padding:6px} .sync-dot{width:30px;height:30px} }
+
+/* stage + book */
+#stage{position:relative;display:flex;align-items:center;justify-content:center;min-height:0;touch-action:pan-y}
+#book{position:relative;perspective:2400px}
+.stack{position:absolute;inset:0;border-radius:3px 9px 9px 3px;background:#e9e0d0;transform:translate(5px,4px);
+  box-shadow:1px 1px 0 #d8cdb9,2px 2px 0 #e6dccb,3px 3px 0 #d3c7b2,4px 4px 0 #e2d8c6,6px 6px 0 #bfb29b,0 26px 50px rgba(0,0,0,.65)}
+.leaf{position:absolute;inset:0;transform-style:preserve-3d;transform-origin:left center}
+.face{position:absolute;inset:0;overflow:hidden;border-radius:2px 8px 8px 2px;backface-visibility:hidden;-webkit-backface-visibility:hidden}
+.face.back{transform:rotateY(180deg)}
+.face.back::after{content:"";position:absolute;inset:0;background:linear-gradient(270deg,rgba(0,0,0,.22),transparent 18%)}
+.cover-inside{background:radial-gradient(circle at 30% 30%,#5a1622,#2a070d 70%)}
+.sheet{position:absolute;left:0;top:0;width:400px;height:640px;transform:scale(var(--s,1));transform-origin:0 0}
+.shade{position:absolute;inset:0;pointer-events:none;opacity:0;background:linear-gradient(90deg,rgba(0,0,0,.05),rgba(0,0,0,.45))}
+
+/* cover */
+.cover{position:absolute;inset:0;color:var(--gold)}
+.cover-art{position:absolute;inset:0;width:100%;height:100%}
+.c-title{position:absolute;left:42px;right:20px;top:84px;text-align:center;font-family:'Pirata One','UnifrakturCook',Georgia,serif;
+  line-height:1;letter-spacing:.015em;background:linear-gradient(170deg,#f8e6ae 10%,#c39143 45%,#efd18a 62%,#9a6d2a 95%);
+  -webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 2px 0 rgba(0,0,0,.55))}
+.c-names{position:absolute;left:42px;right:20px;top:490px;text-align:center;font-family:var(--ui);font-style:italic;font-weight:600;font-size:29px;
+  color:#e7c983;text-shadow:0 1px 0 rgba(0,0,0,.6)}
+.c-tag{position:absolute;left:62px;right:40px;top:536px;text-align:center;font-family:var(--ui);font-style:italic;font-size:15.5px;color:#d9c0b4;opacity:.78}
+
+/* page */
+.paper{position:absolute;inset:0;background:var(--page);color:var(--ink)}
+.paper::before{content:"";position:absolute;inset:0 auto 0 0;width:34px;pointer-events:none;z-index:2;background:linear-gradient(90deg,rgba(0,0,0,.20),rgba(0,0,0,0))}
+.page-head{position:absolute;left:34px;right:22px;top:16px;height:44px;display:flex;align-items:flex-end;gap:10px;font-family:var(--font)}
+.date-wrap{position:relative;display:inline-block}
+.date-show{font-size:calc(var(--fs) * .95);line-height:1.15;border-bottom:1px solid color-mix(in srgb,var(--line) 75%,transparent);padding:0 2px 2px;white-space:nowrap}
+.date-in{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;border:0;padding:0}
+.d-week{font-size:calc(var(--fs) * .78);opacity:.62;padding-bottom:3px;white-space:nowrap}
+.write-area{position:absolute;left:0;right:0;top:62px;bottom:30px;overflow-y:auto;overflow-x:hidden;touch-action:pan-y;scrollbar-width:thin;scrollbar-color:color-mix(in srgb,var(--ink) 30%,transparent) transparent}
+.write-content{position:relative;min-height:100%;padding:0 22px 0 36px;
+  background-image:repeating-linear-gradient(to bottom,transparent 0,transparent 28.7px,color-mix(in srgb,var(--line) 70%,transparent) 28.7px,color-mix(in srgb,var(--line) 70%,transparent) 30px);
+  background-position:0 -6px}
+body.kb .write-content{padding-bottom:330px}
+.editor{min-height:540px;outline:none;font-family:var(--font);font-size:var(--fs);line-height:30px;color:var(--ink);caret-color:var(--ink);
+  white-space:pre-wrap;overflow-wrap:anywhere;padding-top:1px}
+.editor:empty::before{content:attr(data-placeholder);opacity:.33;pointer-events:none}
+.stk-layer{position:absolute;inset:0;pointer-events:none}
+.folio{position:absolute;left:0;right:0;bottom:7px;text-align:center;font:italic 600 13px var(--ui);color:var(--ink);opacity:.45}
+
+/* stickers */
+.sticker{position:absolute;left:0;top:0;pointer-events:auto;touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab;line-height:1}
+.sticker.sel{outline:1.5px dashed rgba(201,163,95,.95);outline-offset:5px;border-radius:6px}
+.sticker .emo{display:block;font-size:44px;font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif}
+.sticker svg{display:block}
+.tape{display:block;width:124px;height:30px;background:var(--tc);opacity:.78;
+  background-image:repeating-linear-gradient(90deg,rgba(255,255,255,.18) 0 6px,transparent 6px 14px);
+  clip-path:polygon(0 4%,3% 0,6% 6%,94% 0,97% 5%,100% 0,100% 100%,97% 95%,94% 100%,6% 96%,3% 100%,0 96%)}
+.stk-tools{position:absolute;transform:translateX(-50%);display:flex;gap:2px;padding:3px;border-radius:999px;background:#241417;border:1px solid var(--line-soft);
+  pointer-events:auto;z-index:5;box-shadow:0 6px 18px rgba(0,0,0,.4)}
+.stk-tools button{width:32px;height:32px;border:0;border-radius:50%;background:transparent;color:var(--bone);font-size:17px;cursor:pointer}
+.stk-tools button:hover{background:rgba(201,163,95,.18)}
+.stk-tools button[data-a="del"]{color:var(--danger)}
+
+/* drawers */
+#backdrop{position:fixed;inset:0;background:rgba(6,2,3,.45);opacity:0;pointer-events:none;transition:opacity .2s;z-index:20}
+#backdrop.open{opacity:1;pointer-events:auto}
+#drawer{position:fixed;left:50%;bottom:var(--kbo,0px);transform:translate(-50%,110%);width:min(560px,100%);max-height:min(78dvh,680px);overflow:auto;
+  background:linear-gradient(180deg,var(--panel-2),var(--panel) 120px);border:1px solid var(--line-soft);border-bottom:0;border-radius:20px 20px 0 0;
+  padding:8px 18px calc(18px + env(safe-area-inset-bottom,0px));transition:transform .28s cubic-bezier(.2,.8,.2,1);z-index:21;visibility:hidden}
+#drawer.open{transform:translate(-50%,0);visibility:visible}
+.grip{width:42px;height:4px;border-radius:4px;background:rgba(239,230,214,.25);margin:4px auto 10px}
+.d-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.d-head h2{margin:0;font-size:25px;font-weight:700;letter-spacing:.005em;color:var(--gold-hi)}
+.x{width:36px;height:36px;border-radius:50%;border:1px solid var(--line-soft);background:transparent;cursor:pointer;font-size:16px}
+.hint{margin:0 0 12px;color:var(--muted);font-size:17px;line-height:1.35}
+.sec{margin:14px 0 6px;font-size:18px;font-weight:700;color:var(--bone)}
+.field{display:flex;flex-direction:column;gap:5px;font-size:16px;color:var(--muted);flex:1;min-width:0}
+.field input,.field select,.inp{background:#140b0d;border:1px solid var(--line-soft);border-radius:10px;padding:10px 12px;font-size:18px;color:var(--bone);width:100%}
+.field input:disabled{opacity:.45}
+.row{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
+#fd{display:grid;grid-template-columns:minmax(88px,1fr) minmax(120px,1.5fr) minmax(80px,1fr);gap:10px}
+#fd button[type=submit]{grid-column:1 / -1;justify-content:center}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+.msg{margin-top:12px;font-size:17px;line-height:1.4;color:var(--bone)}
+.msg.err{color:var(--danger)}
+.swatches{display:flex;flex-wrap:wrap;gap:9px}
+.sw{width:34px;height:34px;border-radius:50%;border:1px solid rgba(255,255,255,.25);background:var(--c);cursor:pointer;position:relative;padding:0}
+.sw.on{box-shadow:0 0 0 2px var(--panel),0 0 0 4px var(--gold-hi)}
+.sw.custom{background:conic-gradient(#e0565b,#e8c45a,#6fbf73,#4f8fd6,#9b6ad6,#e0565b);overflow:hidden}
+.sw.custom input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;border:0;padding:0}
+.fonts{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.font-opt{background:#f7f1e6;color:#1b1b1b;border:2px solid transparent;border-radius:10px;padding:8px 10px;text-align:left;cursor:pointer;min-height:58px}
+.font-opt.on{border-color:var(--gold)}
+.font-opt b{display:block;font:600 13px var(--ui);color:#6d5a52;margin-bottom:2px}
+input[type=range]{width:100%;accent-color:var(--gold)}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.tab{border:1px solid var(--line-soft);background:transparent;border-radius:999px;padding:5px 13px;font-size:16px;font-weight:600;cursor:pointer}
+.tab.on{background:rgba(201,163,95,.18);border-color:var(--gold)}
+.tray{display:grid;grid-template-columns:repeat(auto-fill,minmax(54px,1fr));gap:6px}
+.tray button{height:58px;border:1px solid rgba(255,255,255,.08);border-radius:12px;background:rgba(255,255,255,.04);cursor:pointer;display:grid;place-items:center;font-size:32px;font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif}
+.tray button:hover{background:rgba(201,163,95,.14)}
+.tray .tape{width:46px;height:16px}
+.dict-out{margin-top:12px}
+.dict-word{font-size:30px;font-weight:700;color:var(--gold-hi);margin:0}
+.dict-ph{color:var(--muted);font-size:18px;display:flex;align-items:center;gap:8px;margin:2px 0 8px}
+.dict-pos{font-style:italic;font-weight:700;font-size:19px;margin:14px 0 4px;color:var(--bone)}
+.dict-out ol{margin:0;padding-left:22px}
+.dict-out li{margin:5px 0;font-size:18px;line-height:1.4}
+.dict-ex{display:block;color:var(--muted);font-style:italic}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.chip{border:1px solid var(--line-soft);background:transparent;border-radius:999px;padding:3px 11px;font-size:16px;cursor:pointer}
+.menu-list{display:flex;flex-direction:column;gap:6px}
+.menu-list button{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.07);background:rgba(255,255,255,.03);cursor:pointer;font-size:19px;font-weight:600}
+.menu-list button small{font-weight:500;font-size:15px;color:var(--muted)}
+.menu-list button.danger{color:var(--danger)}
+.link{background:none;border:0;color:var(--gold-hi);text-decoration:underline;cursor:pointer;padding:0;font-size:17px}
+
+#toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);background:#2a171b;border:1px solid var(--line-soft);
+  color:var(--bone);padding:10px 16px;border-radius:12px;font-size:17px;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:40;max-width:min(92vw,460px);text-align:center}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+body.kb #bottombar{display:none}
+@media (prefers-reduced-motion:reduce){#drawer,#toast,#backdrop{transition:none}}
+</style>
+</head>
+<body>
+<div id="app">
+  <header id="topbar" class="bar">
+    <button class="btn page-only" id="b-dict" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5"/></svg><span>Dictionary</span></button>
+    <button class="btn page-only" id="b-style" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M14 4l6 6-9 9H5v-6z"/><path d="M12 6l6 6"/></svg><span>Style</span></button>
+    <button class="btn page-only" id="b-stk" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3l2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.4 6.7 19.4l1.2-6L3.4 9.3l6-.7z"/></svg><span>Stickers</span></button>
+    <span class="spacer cover-only"></span>
+    <button class="sync-dot" id="b-sync" type="button" aria-label="Sync status"><i></i></button>
+    <button class="btn icon" id="b-menu" type="button" aria-label="Menu"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="19" cy="12" r="1.9"/></svg></button>
+  </header>
+  <main id="stage"><div id="book"><div class="stack"></div></div></main>
+  <footer id="bottombar" class="bar">
+    <button class="btn page-only" id="b-prev" type="button" aria-label="Previous page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 5l-7 7 7 7"/></svg><span class="lbl-long">Back</span></button>
+    <button class="btn" id="b-find" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg><span>Find a date</span></button>
+    <button class="btn primary" id="b-next" type="button"><span id="next-lbl">New page</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5l7 7-7 7"/></svg></button>
+  </footer>
+</div>
+<div id="backdrop"></div>
+<section id="drawer" role="dialog" aria-modal="true" aria-label="Panel"></section>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script type="module">
+/* =====================================================================
+   SYNC SETUP — paste your Firebase web config here (see README.md).
+   Leave as null to use the journal on one device only (still offline).
+   ===================================================================== */
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDhGpNfcbQaspZ2DQ43O2ggSkE94ie3x9c",
+  authDomain: "midnight-pages-4bcb4.firebaseapp.com",
+  projectId: "midnight-pages-4bcb4",
+  storageBucket: "midnight-pages-4bcb4.firebasestorage.app",
+  messagingSenderId: "1088286091211",
+  appId: "1:1088286091211:web:00f666e5efcb3d22c2384e",
+  measurementId: "G-D3PY30X8D8"
+};
+/* Example:
+const FIREBASE_CONFIG = {
+  apiKey: "AIza...",
+  authDomain: "your-project.firebaseapp.com",
+  projectId: "your-project",
+  storageBucket: "your-project.appspot.com",
+  messagingSenderId: "1234567890",
+  appId: "1:1234567890:web:abc123"
+};
+*/
+const FIREBASE_VERSION = '10.12.2';
+
+/* ---------- helpers ---------- */
+const LW = 400, LH = 640;
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad = n => String(n).padStart(2, '0');
+const isoOf = (y, m, d) => `${y}-${pad(m)}-${pad(d)}`;
+const todayISO = () => { const t = new Date(); return isoOf(t.getFullYear(), t.getMonth() + 1, t.getDate()); };
+const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const parseISO = iso => { const [y, m, d] = iso.split('-').map(Number); return new Date(y, m - 1, d); };
+const longDate = iso => parseISO(iso).toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' });
+const weekday = iso => parseISO(iso).toLocaleDateString('en-GB', { weekday:'long' });
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const PLAINTEXT_OK = (() => { const d = document.createElement('div'); try { d.contentEditable = 'plaintext-only'; } catch { return false; } return d.contentEditable === 'plaintext-only'; })();
+
+/* ---------- options ---------- */
+const FONTS = [
+  { id:'caveat',   name:'Caveat',            css:"'Caveat', cursive",             size:24 },
+  { id:'dancing',  name:'Dancing Script',    css:"'Dancing Script', cursive",     size:21 },
+  { id:'homemade', name:'Homemade Apple',    css:"'Homemade Apple', cursive",     size:15 },
+  { id:'indie',    name:'Indie Flower',      css:"'Indie Flower', cursive",       size:20 },
+  { id:'kalam',    name:'Kalam',             css:"'Kalam', cursive",              size:18 },
+  { id:'shadows',  name:'Shadows Into Light',css:"'Shadows Into Light', cursive", size:21 },
+  { id:'belle',    name:'La Belle Aurore',   css:"'La Belle Aurore', cursive",    size:19 },
+  { id:'patrick',  name:'Patrick Hand',      css:"'Patrick Hand', cursive",       size:20 },
+  { id:'serif',    name:'Book serif',        css:"'Cormorant Garamond', Georgia, serif", size:19 },
+];
+const fontById = id => FONTS.find(f => f.id === id) || FONTS[0];
+const PAGE_COLORS = ['#ffffff','#fbf6ec','#f2e6cf','#f7e3e6','#e7edf3','#e8efe2','#2b2326','#151216'];
+const LINE_COLORS = ['#000000','#8f9bb0','#c9a35f','#b5485d','#6f8a62','#ffffff'];
+const INK_COLORS  = ['#1a1a1a','#1d2a5a','#6a1020','#3d2b56','#24452f','#7a5420','#c9a35f','#ffffff'];
+const STICKERS = {
+  'Dark romance': ['🥀','🌹','🖤','🕯️','🗝️','🔮','🦇','🌙','🕸️','💀','🗡️','⛓️','🩸','🍷','♠️','🃏','🪦','🐍','🦋','🪶','📜','💌','⚜️','🖋️'],
+  'Soft': ['🌸','🌷','💗','💕','🎀','☁️','⭐','✨','🌈','🍓','🧸','🐾','☕','📚','🎧','💐','🌻','🍰'],
+  'Moods': ['😊','🥹','😭','😤','😴','🥰','😌','🤯','🤍','💭','🔥','💫','🙏','💯'],
+};
+const TAPES = ['#c9a35f','#7d1d2c','#2d2433','#e8b4bc','#b9c7d6','#cfe0c3','#f1e3b3'];
+
+/* ---------- state ---------- */
+const LS = { pages:'mp.pages.v1', settings:'mp.settings.v1', dict:'mp.dict.v1' };
+const DEFAULT_STYLE = { pageColor:'#ffffff', lineColor:'#000000', font:'caveat', ink:'#1a1a1a', size:24 };
+const DEFAULT_SETTINGS = { title:'Midnight Pages', name1:'Seraphine', name2:'Kael', tagline:'some stories are meant to haunt you', style:{ ...DEFAULT_STYLE }, updatedAt:0 };
+const load = (k, f) => { try { const v = JSON.parse(localStorage.getItem(k)); return v ?? f; } catch { return f; } };
+function normalizePage(p) {
+  return { id:p.id, date:p.date || todayISO(), text:p.text || '', stickers:Array.isArray(p.stickers) ? p.stickers : [],
+    style:{ ...DEFAULT_STYLE, ...(p.style || {}) }, createdAt:p.createdAt || Date.now(), updatedAt:p.updatedAt || 0, deleted:!!p.deleted };
+}
+const state = { pages:{}, settings:{ ...DEFAULT_SETTINGS, ...load(LS.settings, {}) } };
+state.settings.style = { ...DEFAULT_STYLE, ...state.settings.style };
+for (const [id, p] of Object.entries(load(LS.pages, {}))) state.pages[id] = normalizePage({ ...p, id });
+
+let order = [], cur = -1, curId = null;
+function refreshOrder() {
+  order = Object.values(state.pages).filter(p => !p.deleted)
+    .sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : a.createdAt - b.createdAt);
+  cur = curId ? order.findIndex(p => p.id === curId) : -1;
+  if (cur < 0) curId = null;
+}
+const isBlank = p => !p.text.trim() && !p.stickers.length;
+
+/* ---------- saving ---------- */
+let localTimer = null, settingsTimer = null, quotaWarned = false;
+const pushTimers = new Map();
+function saveLocalSoon() { clearTimeout(localTimer); localTimer = setTimeout(saveLocalNow, 350); }
+function saveLocalNow() {
+  clearTimeout(localTimer);
+  try { localStorage.setItem(LS.pages, JSON.stringify(state.pages)); localStorage.setItem(LS.settings, JSON.stringify(state.settings)); }
+  catch { if (!quotaWarned) { quotaWarned = true; toast('This device is out of storage space. Download a backup from the menu.'); } }
+}
+function touchPage(p) {
+  p.updatedAt = Date.now(); saveLocalSoon();
+  clearTimeout(pushTimers.get(p.id));
+  pushTimers.set(p.id, setTimeout(() => { pushTimers.delete(p.id); pushPage(p); }, 1200));
+}
+function touchSettings() { state.settings.updatedAt = Date.now(); saveLocalSoon(); clearTimeout(settingsTimer); settingsTimer = setTimeout(pushSettings, 1200); }
+function flushAll() {
+  saveLocalNow();
+  for (const [id, t] of pushTimers) { clearTimeout(t); const p = state.pages[id]; if (p) pushPage(p); }
+  pushTimers.clear();
+  if (settingsTimer) { clearTimeout(settingsTimer); settingsTimer = null; pushSettings(); }
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushAll(); });
+addEventListener('pagehide', flushAll);
+function createPage(date) {
+  const p = normalizePage({ id:newId(), date, style:{ ...state.settings.style }, createdAt:Date.now() });
+  state.pages[p.id] = p; touchPage(p); refreshOrder(); return p;
+}
+
+/* ---------- layout ---------- */
+const book = $('#book'), stage = $('#stage');
+let scale = 1, lastW = 0;
+function layout(force) {
+  const r = stage.getBoundingClientRect();
+  if (!force && document.body.classList.contains('kb') && Math.abs(r.width - lastW) < 2) return;
+  lastW = r.width;
+  let w = Math.min(r.width * 0.94, r.height * 0.96 * LW / LH, 640);
+  w = Math.max(220, Math.floor(w));
+  book.style.width = w + 'px'; book.style.height = Math.round(w * LH / LW) + 'px';
+  scale = w / LW; book.style.setProperty('--s', scale);
+}
+addEventListener('resize', () => layout(false));
+
+/* keyboard awareness (phones) */
+const vv = window.visualViewport;
+function onViewport() {
+  if (!vv) return;
+  const hidden = innerHeight - (vv.height + vv.offsetTop);
+  const kb = hidden > 120;
+  document.body.classList.toggle('kb', kb);
+  document.documentElement.style.setProperty('--kbo', Math.max(0, hidden) + 'px');
+  if (kb) keepCaretVisible();
+}
+vv && vv.addEventListener('resize', onViewport);
+vv && vv.addEventListener('scroll', onViewport);
+function keepCaretVisible() {
+  const ed = document.activeElement;
+  if (!ed || !ed.classList?.contains('editor')) return;
+  const sel = getSelection(); if (!sel.rangeCount) return;
+  const range = sel.getRangeAt(0);
+  const r = range.getClientRects()[0] || range.getBoundingClientRect();
+  if (!r || !r.height) return;
+  const limit = (vv ? vv.offsetTop + vv.height : innerHeight) - 24;
+  if (r.bottom > limit) ed.closest('.write-area').scrollTop += (r.bottom - limit) / scale;
+}
+
+/* ---------- cover ---------- */
+function coverHTML() {
+  const s = state.settings;
+  const t = s.title || 'Journal';
+  const fs = clamp(Math.round(640 / Math.max(9, t.length)), 30, 58);
+  const names = [s.name1, s.name2].map(x => (x || '').trim()).filter(Boolean).join(' & ');
+  return `<div class="cover">
+<svg class="cover-art" viewBox="0 0 400 640" aria-hidden="true">
+ <defs>
+  <linearGradient id="lea" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5c1521"/><stop offset=".55" stop-color="#390b14"/><stop offset="1" stop-color="#1c0408"/></linearGradient>
+  <radialGradient id="glow" cx=".53" cy=".47" r=".55"><stop offset="0" stop-color="#8a2233" stop-opacity=".5"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>
+  <linearGradient id="foil" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f6e2a6"/><stop offset=".35" stop-color="#b98a3e"/><stop offset=".6" stop-color="#ecd08a"/><stop offset="1" stop-color="#8a6326"/></linearGradient>
+  <radialGradient id="petal" cx=".45" cy=".35" r=".8"><stop offset="0" stop-color="#b8283d"/><stop offset=".6" stop-color="#6e0f1e"/><stop offset="1" stop-color="#2b040b"/></radialGradient>
+  <filter id="grain"><feTurbulence type="fractalNoise" baseFrequency=".85" numOctaves="2" stitchTiles="stitch"/><feColorMatrix values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .2 0"/></filter>
+  <g id="corner" fill="none" stroke="url(#foil)" stroke-width="1.3" stroke-linecap="round">
+   <path d="M0 0h46M0 0v46"/><path d="M8 8c18 0 24 8 20 17-3 7-12 5-10-1 2-5 8-3 7 1"/><path d="M8 8c0 18 8 24 17 20 7-3 5-12-1-10-5 2-3 8 1 7"/>
+   <circle cx="8" cy="8" r="2.4" fill="url(#foil)"/><path d="M30 4c6 0 10 2 12 6M4 30c0 6 2 10 6 12"/>
+  </g>
+ </defs>
+ <rect width="400" height="640" fill="url(#lea)"/>
+ <rect width="400" height="640" fill="url(#glow)"/>
+ <rect width="400" height="640" filter="url(#grain)"/>
+ <rect x="0" y="0" width="26" height="640" fill="#000" opacity=".38"/>
+ <line x1="26.5" y1="0" x2="26.5" y2="640" stroke="#000" stroke-opacity=".55"/>
+ <g stroke="url(#foil)" stroke-width="1.1" opacity=".85"><path d="M4 68h18M4 73h18M4 567h18M4 572h18"/></g>
+ <rect x="42" y="22" width="338" height="596" rx="4" fill="none" stroke="url(#foil)" stroke-width="2"/>
+ <rect x="50" y="30" width="322" height="580" rx="2" fill="none" stroke="url(#foil)" stroke-width=".8" opacity=".75"/>
+ <use href="#corner" transform="translate(50 30)"/>
+ <use href="#corner" transform="translate(372 30) scale(-1 1)"/>
+ <use href="#corner" transform="translate(50 610) scale(1 -1)"/>
+ <use href="#corner" transform="translate(372 610) scale(-1 -1)"/>
+ <g fill="none" stroke="url(#foil)" stroke-width="1"><path d="M126 176h70M226 176h70"/><path d="M211 169l7 7-7 7-7-7z" fill="url(#foil)"/></g>
+ <g fill="url(#foil)" opacity=".85"><circle cx="128" cy="232" r="1.4"/><circle cx="300" cy="250" r="1.8"/><circle cx="118" cy="402" r="1.2"/><circle cx="306" cy="420" r="1.4"/><circle cx="292" cy="214" r="1"/></g>
+ <path d="M172.2 363 A74 74 0 1 1 249.8 363 L268 470 L154 470 Z" fill="#12030a" fill-opacity=".55" stroke="#000" stroke-opacity=".5" stroke-width="7"/>
+ <path d="M172.2 363 A74 74 0 1 1 249.8 363 L268 470 L154 470 Z" fill="none" stroke="url(#foil)" stroke-width="2.4"/>
+ <path d="M176.5 359.5 A68 68 0 1 1 245.5 359.5 L262 464 L160 464 Z" fill="none" stroke="url(#foil)" stroke-width=".7" opacity=".7"/>
+ <g fill="none" stroke-linecap="round">
+  <path d="M211 334c-6 30 10 58 2 88-3 14-2 26-1 38" stroke="#1d2b1c" stroke-width="3.4"/>
+  <path d="M207 360l-7-3 6 7M215 392l8-2-7 6M209 424l-7-2 6 6M212 446l7-1-6 5" stroke="#1d2b1c" stroke-width="1.6"/>
+ </g>
+ <path d="M206 382c-16-4-28 2-30 12 12 2 24-2 30-12z" fill="#22381f"/><path d="M206 382c-10 2-19 6-26 11" stroke="#3c5a35" stroke-width=".8" fill="none"/>
+ <path d="M214 410c14-6 27-2 31 7-12 4-24 1-31-7z" fill="#1d321b"/><path d="M214 410c9 1 18 3 27 7" stroke="#3c5a35" stroke-width=".8" fill="none"/>
+ <path d="M223 394c3 5 4 8 2 10-2 2-5 0-4-3 0-2 1-4 2-7z" fill="#8e1527"/>
+ <g transform="translate(211 296)">
+  <path d="M-48 4C-54-27-27-48 0-46 27-48 54-27 48 4 44 31 21 46 0 46-21 46-44 31-48 4Z" fill="url(#petal)"/>
+  <path d="M-42-2C-32-31-7-38 4-31-15-25-25-10-23 15-31 13-40 8-42-2Z" fill="#8c1729" opacity=".92"/>
+  <path d="M42-4C36-29 13-40-2-33 19-25 27-6 23 17 31 13 40 6 42-4Z" fill="#76111f"/>
+  <path d="M-27 17C-15 36 15 38 29 17 19 28-15 30-27 17Z" fill="#a3203a"/>
+  <path d="M-23-4C-21-26 21-27 23-4 19 11-19 13-23-4Z" fill="#560a16"/>
+  <path d="M-2-10C8-17 17-6 10 2 4 10-12 6-10-6-8-19 10-23 19-12" fill="none" stroke="#1d0206" stroke-width="2.3" stroke-linecap="round"/>
+  <path d="M-38-11C-31-27-15-35 0-35" stroke="#df4a62" stroke-width="1.3" fill="none" opacity=".55"/>
+  <path d="M10 24C18 22 24 17 27 11" stroke="#df4a62" stroke-width="1" fill="none" opacity=".45"/>
+ </g>
+ <g fill="none" stroke="url(#foil)" stroke-width=".9" opacity=".8"><path d="M171 590h28M223 590h28"/><circle cx="211" cy="590" r="3"/></g>
+</svg>
+<div class="c-title" style="font-size:${fs}px">${esc(t)}</div>
+<div class="c-names">${esc(names)}</div>
+<div class="c-tag">${esc(s.tagline)}</div>
+</div>`;
+}
+
+/* ---------- sticker art ---------- */
+const sealSVG = letter => `<svg width="66" height="66" viewBox="0 0 66 66"><defs><radialGradient id="wx" cx=".4" cy=".35" r=".7"><stop offset="0" stop-color="#b52a40"/><stop offset="1" stop-color="#5a0a16"/></radialGradient></defs>
+<path d="M33 2c5 0 6 4 10 5s8-2 11 2-1 7 1 11 6 4 6 9-4 6-5 10 2 8-2 11-7-1-11 1-4 6-9 6-6-4-10-5-8 2-11-2 1-7-1-11-6-4-6-9 4-6 5-10-2-8 2-11 7 1 11-1 4-6 9-6z" fill="url(#wx)"/>
+<circle cx="33" cy="33" r="19" fill="none" stroke="#3d0610" stroke-width="2" opacity=".6"/>
+<text x="33" y="42" text-anchor="middle" font-family="Pirata One, Georgia, serif" font-size="26" fill="#e9c77d">${esc(letter)}</text></svg>`;
+const cornerSVG = `<svg width="70" height="70" viewBox="0 0 70 70" fill="none" stroke="#b98a3e" stroke-width="1.6" stroke-linecap="round"><path d="M4 4h58M4 4v58"/><path d="M12 12c22 0 29 10 24 21-4 8-15 6-12-1 2-6 10-4 9 1"/><path d="M12 12c0 22 10 29 21 24 8-4 6-15-1-12-6 2-4 10 1 9"/><circle cx="12" cy="12" r="3" fill="#b98a3e"/></svg>`;
+const roseSVG = `<svg width="64" height="76" viewBox="0 0 64 76"><path d="M32 40c-3 12 4 22 0 34" stroke="#1d2b1c" stroke-width="2.4" fill="none"/><path d="M31 54c-9-3-16 1-17 7 7 1 14-1 17-7z" fill="#2a4426"/>
+<g transform="translate(32 24)"><path d="M-22 2C-25-12-12-22 0-21 12-22 25-12 22 2 20 14 10 21 0 21-10 21-20 14-22 2Z" fill="#7a1222"/><path d="M-19-1C-14-14-3-17 2-14-7-11-11-4-10 7-14 6-18 4-19-1Z" fill="#9c1d32"/><path d="M-10-2C-9-12 9-12 10-2 8 5-8 6-10-2Z" fill="#560a16"/><path d="M-1-5C4-8 8-3 5 1 2 5-6 3-5-3-4-9 5-10 9-5" fill="none" stroke="#1d0206" stroke-width="1.5"/></g></svg>`;
+function stickerInner(s) {
+  switch (s.type) {
+    case 'emoji': return `<span class="emo">${esc(s.v)}</span>`;
+    case 'tape': return `<span class="tape" style="--tc:${esc(s.v)}"></span>`;
+    case 'seal': return sealSVG(s.v || 'J');
+    case 'corner': return cornerSVG;
+    case 'rose': return roseSVG;
+    default: return '';
+  }
+}
+
+/* ---------- leaves ---------- */
+function buildLeaf(idx) {
+  const leaf = document.createElement('div'); leaf.className = 'leaf';
+  const front = document.createElement('div'); front.className = 'face front';
+  const back = document.createElement('div'); back.className = 'face back';
+  const sheet = document.createElement('div'); sheet.className = 'sheet';
+  const shade = document.createElement('div'); shade.className = 'shade';
+  front.append(sheet, shade); leaf.append(front, back);
+  if (idx < 0) { leaf.classList.add('is-cover'); sheet.innerHTML = coverHTML(); back.classList.add('cover-inside'); }
+  else { const p = order[idx]; leaf.dataset.id = p.id; back.style.background = p.style.pageColor; fillPage(sheet, p, idx); }
+  return leaf;
+}
+function applyPaperVars(paper, st) {
+  paper.style.setProperty('--page', st.pageColor);
+  paper.style.setProperty('--line', st.lineColor);
+  paper.style.setProperty('--ink', st.ink);
+  paper.style.setProperty('--font', fontById(st.font).css);
+  paper.style.setProperty('--fs', st.size + 'px');
+}
+function fillPage(sheet, p, idx) {
+  sheet.innerHTML = `<div class="paper">
+    <div class="page-head">
+      <span class="date-wrap"><span class="date-show"></span><input class="date-in" type="date" aria-label="Date of this page"></span>
+      <span class="d-week"></span>
+    </div>
+    <div class="write-area"><div class="write-content">
+      <div class="editor" role="textbox" aria-multiline="true" aria-label="Journal page" spellcheck="true" data-placeholder="Dear diary…"></div>
+      <div class="stk-layer"></div>
+    </div></div>
+    <div class="folio">${idx + 1}</div>
+  </div>`;
+  const paper = $('.paper', sheet); applyPaperVars(paper, p.style);
+  const dIn = $('.date-in', sheet);
+  const showDate = () => { $('.date-show', sheet).textContent = longDate(p.date); $('.d-week', sheet).textContent = weekday(p.date); dIn.value = p.date; };
+  showDate();
+  dIn.addEventListener('click', () => { try { dIn.showPicker(); } catch {} });
+  dIn.addEventListener('change', () => {
+    if (!dIn.value) { dIn.value = p.date; return; }
+    p.date = dIn.value; touchPage(p); showDate(); refreshOrder(); updateFolio();
+    toast('Page dated ' + longDate(p.date));
+  });
+  const ed = $('.editor', sheet);
+  ed.contentEditable = PLAINTEXT_OK ? 'plaintext-only' : 'true';
+  ed.textContent = p.text;
+  ed.addEventListener('input', () => { p.text = ed.innerText; touchPage(p); requestAnimationFrame(keepCaretVisible); });
+  if (!PLAINTEXT_OK) ed.addEventListener('paste', e => { e.preventDefault(); document.execCommand('insertText', false, e.clipboardData.getData('text/plain')); });
+  renderStickers($('.stk-layer', sheet), p);
+}
+function updateFolio() { const f = $('.leaf.active .folio'); if (f && cur >= 0) f.textContent = cur + 1; updateBars(); }
+function mountStatic(idx) {
+  $$('.leaf', book).forEach(l => l.remove());
+  const l = buildLeaf(idx); l.classList.add('active'); book.append(l);
+  cur = idx; curId = idx >= 0 ? order[idx].id : null; updateBars();
+}
+
+let flipping = false;
+async function flipTo(idx) {
+  if (flipping || idx === cur || idx < -1 || idx >= order.length) return;
+  flipping = true; deselectSticker(); document.activeElement?.blur?.(); saveLocalNow();
+  const old = $('.leaf.active', book), nl = buildLeaf(idx), fwd = idx > cur;
+  const dur = reduceMotion ? 1 : 720, ease = 'cubic-bezier(.45,.05,.3,1)';
+  if (fwd) {
+    nl.style.zIndex = 1; old.style.zIndex = 2; book.insertBefore(nl, old);
+    $('.shade', old).animate([{ opacity:0 }, { opacity:.6 }], { duration:dur, fill:'forwards' });
+    await old.animate([{ transform:'rotateY(0deg)' }, { transform:'rotateY(-180deg)' }], { duration:dur, easing:ease, fill:'forwards' }).finished;
+  } else {
+    nl.style.zIndex = 2; old.style.zIndex = 1; book.append(nl);
+    $('.shade', nl).animate([{ opacity:.6 }, { opacity:0 }], { duration:dur, fill:'forwards' });
+    const a = nl.animate([{ transform:'rotateY(-180deg)' }, { transform:'rotateY(0deg)' }], { duration:dur, easing:ease, fill:'forwards' });
+    await a.finished; a.cancel(); $('.shade', nl).getAnimations().forEach(x => x.cancel());
+  }
+  old.remove(); nl.style.zIndex = ''; nl.classList.add('active');
+  cur = idx; curId = idx >= 0 ? order[idx].id : null; updateBars(); flipping = false;
+}
+
+/* ---------- navigation ---------- */
+function goNext() {
+  if (cur === -1) return openNewPage();
+  if (cur < order.length - 1) return flipTo(cur + 1);
+  if (isBlank(order[cur])) return toast('This page is still blank. Write something first.');
+  const p = createPage(todayISO()); flipTo(order.indexOf(p));
+}
+function goPrev() { if (cur >= 0) flipTo(cur - 1); }
+function openNewPage() {
+  const last = order[order.length - 1];
+  if (last && isBlank(last)) { if (last.date !== todayISO()) { last.date = todayISO(); touchPage(last); refreshOrder(); } return flipTo(order.indexOf(last)); }
+  const p = createPage(todayISO()); flipTo(order.indexOf(p));
+}
+function openLatest() { if (!order.length) return openNewPage(); flipTo(order.length - 1); }
+function updateBars() {
+  const onCover = cur < 0;
+  $$('.page-only').forEach(b => b.hidden = onCover);
+  $$('.cover-only').forEach(b => b.hidden = !onCover);
+  $('#next-lbl').textContent = onCover ? 'New page' : (cur >= order.length - 1 ? 'New page' : 'Next');
+  updateSyncUI();
+}
+$('#b-next').addEventListener('click', goNext);
+$('#b-prev').addEventListener('click', goPrev);
+
+/* swipe */
+let sw = null;
+stage.addEventListener('pointerdown', e => {
+  if (flipping || e.target.closest('.sticker,.stk-tools,input,button,select')) { sw = null; return; }
+  if (e.pointerType === 'mouse' && e.target.closest('.editor')) { sw = null; return; }
+  sw = { x:e.clientX, y:e.clientY, t:Date.now() };
+}, { passive:true });
+stage.addEventListener('pointerup', e => {
+  if (!sw) return;
+  const dx = e.clientX - sw.x, dy = e.clientY - sw.y, dt = Date.now() - sw.t; sw = null;
+  const sel = getSelection();
+  if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.6 || dt > 800 || (sel && !sel.isCollapsed)) return;
+  if (dx < 0) { cur === -1 ? openLatest() : goNext(); } else goPrev();
+});
+stage.addEventListener('pointercancel', () => { sw = null; });
+addEventListener('keydown', e => {
+  if (e.key === 'Escape' && drawerName) return closeDrawer();
+  const t = e.target;
+  if (t.closest?.('.editor,input,select,textarea') || drawerName) return;
+  if (e.key === 'ArrowRight') { cur === -1 ? openLatest() : goNext(); }
+  if (e.key === 'ArrowLeft') goPrev();
+});
+
+/* ---------- stickers ---------- */
+let selected = null;
+function placeSticker(el, s) { el.style.left = s.x + 'px'; el.style.top = s.y + 'px'; el.style.transform = `translate(-50%,-50%) rotate(${s.r}deg) scale(${s.s})`; }
+function renderStickers(layer, p) { layer.innerHTML = ''; p.stickers.forEach(s => layer.append(stickerEl(s, p))); }
+function stickerEl(s, p) {
+  const el = document.createElement('div'); el.className = 'sticker'; el.innerHTML = stickerInner(s); placeSticker(el, s);
+  el.addEventListener('pointerdown', e => {
+    e.stopPropagation(); e.preventDefault(); selectSticker(el, s, p);
+    const sx = e.clientX, sy = e.clientY, ox = s.x, oy = s.y; let moved = false;
+    el.setPointerCapture(e.pointerId);
+    const mv = ev => { const dx = (ev.clientX - sx) / scale, dy = (ev.clientY - sy) / scale; if (Math.abs(dx) + Math.abs(dy) > 2) moved = true;
+      s.x = clamp(ox + dx, 0, LW); s.y = Math.max(0, oy + dy); placeSticker(el, s); positionTools(); };
+    const up = () => { el.removeEventListener('pointermove', mv); el.removeEventListener('pointerup', up); el.removeEventListener('pointercancel', up); if (moved) touchPage(p); };
+    el.addEventListener('pointermove', mv); el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
+  });
+  return el;
+}
+function selectSticker(el, s, p) {
+  if (selected?.el === el) return;
+  deselectSticker(); el.classList.add('sel');
+  const tools = document.createElement('div'); tools.className = 'stk-tools';
+  tools.innerHTML = `<button data-a="smaller" aria-label="Make smaller">−</button><button data-a="bigger" aria-label="Make bigger">+</button><button data-a="rotl" aria-label="Rotate left">⟲</button><button data-a="rotr" aria-label="Rotate right">⟳</button><button data-a="del" aria-label="Remove sticker">✕</button>`;
+  el.parentElement.append(tools); selected = { el, s, p, tools }; positionTools();
+  tools.addEventListener('pointerdown', e => e.stopPropagation());
+  tools.addEventListener('click', e => {
+    const a = e.target.closest('button')?.dataset.a; if (!a) return;
+    if (a === 'del') { p.stickers = p.stickers.filter(x => x.id !== s.id); el.remove(); tools.remove(); selected = null; touchPage(p); return; }
+    if (a === 'smaller') s.s = Math.max(.3, +(s.s - .15).toFixed(2));
+    if (a === 'bigger') s.s = Math.min(4, +(s.s + .15).toFixed(2));
+    if (a === 'rotl') s.r -= 15;
+    if (a === 'rotr') s.r += 15;
+    placeSticker(el, s); positionTools(); touchPage(p);
+  });
+}
+function positionTools() {
+  if (!selected) return; const { s, tools } = selected;
+  tools.style.left = clamp(s.x, 100, LW - 100) + 'px';
+  tools.style.top = Math.max(4, s.y - 34 * s.s - 46) + 'px';
+}
+function deselectSticker() { if (!selected) return; selected.el.classList.remove('sel'); selected.tools.remove(); selected = null; }
+document.addEventListener('pointerdown', e => { if (!e.target.closest('.sticker,.stk-tools')) deselectSticker(); }, true);
+function addSticker(type, v) {
+  if (cur < 0) return;
+  const p = order[cur], wa = $('.leaf.active .write-area');
+  const s = { id:newId(), type, v, x:Math.round(LW / 2 + (Math.random() * 80 - 40)), y:Math.round(wa.scrollTop + wa.clientHeight * 0.35), s:1, r:Math.round(Math.random() * 16 - 8) };
+  p.stickers.push(s); touchPage(p);
+  const el = stickerEl(s, p); $('.leaf.active .stk-layer').append(el);
+  closeDrawer(); selectSticker(el, s, p); toast('Drag the sticker to place it');
+}
+
+/* ---------- drawers ---------- */
+const drawer = $('#drawer'), backdrop = $('#backdrop');
+let drawerName = null, lastFocus = null;
+function openDrawer(name, title, html) {
+  lastFocus = document.activeElement; drawerName = name;
+  drawer.innerHTML = `<div class="grip"></div><div class="d-head"><h2>${title}</h2><button class="x" type="button" aria-label="Close">✕</button></div>${html}`;
+  drawer.setAttribute('aria-label', title);
+  drawer.classList.add('open'); backdrop.classList.add('open');
+  $('.x', drawer).addEventListener('click', closeDrawer);
+  return drawer;
+}
+function closeDrawer() { if (!drawerName) return; drawerName = null; drawer.classList.remove('open'); backdrop.classList.remove('open'); }
+backdrop.addEventListener('click', closeDrawer);
+$$('#topbar button').forEach(b => b.addEventListener('pointerdown', e => { if (e.pointerType !== 'keyboard') e.preventDefault(); }));
+
+let toastTimer;
+function toast(t) { const el = $('#toast'); el.textContent = t; el.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove('show'), 2600); }
+
+/* ---------- style panel ---------- */
+function swatchRow(key, list, val) {
+  return `<div class="swatches" data-key="${key}">${list.map(c => `<button type="button" class="sw${c.toLowerCase() === String(val).toLowerCase() ? ' on' : ''}" style="--c:${c}" data-c="${c}" aria-label="Colour ${c}"></button>`).join('')}
+  <label class="sw custom" title="Any colour"><input type="color" value="${val}" aria-label="Pick any colour"></label></div>`;
+}
+function openStyle() {
+  if (cur < 0) return;
+  const p = order[cur], s = p.style;
+  const d = openDrawer('style', 'Page style', `
+    <div class="sec">Page colour</div>${swatchRow('pageColor', PAGE_COLORS, s.pageColor)}
+    <div class="sec">Line colour</div>${swatchRow('lineColor', LINE_COLORS, s.lineColor)}
+    <div class="sec">Handwriting</div>
+    <div class="fonts">${FONTS.map(f => `<button type="button" class="font-opt${f.id === s.font ? ' on' : ''}" data-f="${f.id}"><b>${f.name}</b><span style="font-family:${f.css};font-size:${f.size}px">tonight I write</span></button>`).join('')}</div>
+    <div class="sec">Ink colour</div>${swatchRow('ink', INK_COLORS, s.ink)}
+    <div class="sec">Writing size</div><input type="range" min="13" max="27" step="1" value="${s.size}" aria-label="Writing size">
+    <div class="actions"><button class="btn" type="button" id="st-all">Use this style on every page</button></div>
+    <p class="hint" style="margin-top:10px">New pages start with the style you set here.</p>`);
+  const apply = patch => {
+    Object.assign(p.style, patch); touchPage(p);
+    state.settings.style = { ...p.style }; touchSettings();
+    const paper = $('.leaf.active .paper'); if (paper) applyPaperVars(paper, p.style);
+    const back = $('.leaf.active .face.back'); if (back) back.style.background = p.style.pageColor;
+  };
+  $$('.swatches', d).forEach(row => {
+    const key = row.dataset.key;
+    row.addEventListener('click', e => { const b = e.target.closest('.sw[data-c]'); if (!b) return; apply({ [key]:b.dataset.c }); $$('.sw', row).forEach(x => x.classList.toggle('on', x === b)); });
+    $('input[type=color]', row).addEventListener('input', e => { apply({ [key]:e.target.value }); $$('.sw', row).forEach(x => x.classList.remove('on')); });
+  });
+  const range = $('input[type=range]', d);
+  $$('.font-opt', d).forEach(b => b.addEventListener('click', () => {
+    const f = fontById(b.dataset.f); apply({ font:f.id, size:f.size }); range.value = f.size;
+    $$('.font-opt', d).forEach(x => x.classList.toggle('on', x === b));
+  }));
+  range.addEventListener('input', () => apply({ size:+range.value }));
+  $('#st-all', d).addEventListener('click', () => {
+    Object.values(state.pages).forEach(x => { if (!x.deleted && x !== p) { x.style = { ...p.style }; touchPage(x); } });
+    toast('Style applied to every page');
+  });
+}
+$('#b-style').addEventListener('click', openStyle);
+
+/* ---------- stickers panel ---------- */
+function openStickers(tab = 'Dark romance') {
+  if (cur < 0) return;
+  const tabs = [...Object.keys(STICKERS), 'Tape & seals'];
+  const initial = (state.settings.name1 || 'J').trim().charAt(0).toUpperCase() || 'J';
+  const body = tab === 'Tape & seals'
+    ? `<div class="tray">${TAPES.map(c => `<button type="button" data-t="tape" data-v="${c}" aria-label="Washi tape"><span class="tape" style="--tc:${c}"></span></button>`).join('')}
+       <button type="button" data-t="seal" data-v="${esc(initial)}" aria-label="Wax seal">${sealSVG(initial).replace('width="66" height="66"', 'width="40" height="40"')}</button>
+       <button type="button" data-t="rose" data-v="" aria-label="Rose">${roseSVG.replace('width="64" height="76"', 'width="36" height="44"')}</button>
+       <button type="button" data-t="corner" data-v="" aria-label="Gold corner">${cornerSVG.replace('width="70" height="70"', 'width="38" height="38"')}</button></div>`
+    : `<div class="tray">${STICKERS[tab].map(e => `<button type="button" data-t="emoji" data-v="${e}" aria-label="Sticker ${e}">${e}</button>`).join('')}</div>`;
+  const d = openDrawer('stickers', 'Stickers', `<div class="tabs">${tabs.map(t => `<button type="button" class="tab${t === tab ? ' on' : ''}" data-tab="${t}">${t}</button>`).join('')}</div>${body}
+    <p class="hint" style="margin-top:12px">Tap a sticker to add it. On the page, drag to move it and tap it for size, turn and remove.</p>`);
+  $$('.tab', d).forEach(b => b.addEventListener('click', () => openStickers(b.dataset.tab)));
+  $$('.tray button', d).forEach(b => b.addEventListener('click', () => addSticker(b.dataset.t, b.dataset.v)));
+}
+$('#b-stk').addEventListener('click', () => openStickers());
+
+/* ---------- dictionary ---------- */
+const dictCache = load(LS.dict, {});
+function openDictionary() {
+  const sel = (getSelection()?.toString() || '').trim();
+  const pre = /^[A-Za-z'-]{1,40}$/.test(sel) ? sel : '';
+  const d = openDrawer('dict', 'Dictionary', `
+    <form class="row" id="dict-form" autocomplete="off">
+      <input class="inp" style="flex:1" type="search" name="w" placeholder="Type an English word" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="search" value="${esc(pre)}">
+      <button class="btn primary" type="submit">Look up</button>
+    </form><div class="dict-out"></div>`);
+  const form = $('#dict-form', d), input = $('input', form);
+  form.addEventListener('submit', e => { e.preventDefault(); lookup(input.value); });
+  if (pre) lookup(pre); else setTimeout(() => input.focus(), 250);
+}
+async function lookup(raw) {
+  const word = (raw || '').trim().toLowerCase(), out = $('.dict-out', drawer);
+  if (!out) return;
+  if (!word) { out.innerHTML = `<p class="msg">Type a word to see its meaning.</p>`; return; }
+  out.innerHTML = `<p class="msg">Looking up “${esc(word)}”…</p>`;
+  let data = null;
+  try {
+    const r = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`);
+    if (r.status === 404) { out.innerHTML = `<p class="msg err">No definition found for “${esc(word)}”. Check the spelling, or try the base form (run, not running).</p>`; return; }
+    if (!r.ok) throw new Error('bad');
+    data = await r.json();
+    dictCache[word] = data; const keys = Object.keys(dictCache);
+    if (keys.length > 400) delete dictCache[keys[0]];
+    try { localStorage.setItem(LS.dict, JSON.stringify(dictCache)); } catch {}
+  } catch {
+    data = dictCache[word];
+    if (!data) { out.innerHTML = `<p class="msg err">The dictionary needs internet for new words. Words you've looked up before still open offline.</p>`; return; }
+  }
+  renderDict(out, data);
+}
+function renderDict(out, data) {
+  const e0 = data[0], word = e0.word;
+  const ph = data.flatMap(e => e.phonetics || []);
+  const text = e0.phonetic || ph.find(p => p.text)?.text || '';
+  const audio = ph.find(p => p.audio)?.audio || '';
+  const meanings = data.flatMap(e => e.meanings || []);
+  out.innerHTML = `<p class="dict-word">${esc(word)}</p>
+    <div class="dict-ph">${esc(text)}${audio ? ` <button class="btn icon" type="button" id="say" aria-label="Hear it">▶</button>` : ''}</div>
+    ${meanings.map(m => {
+      const syn = [...new Set([...(m.synonyms || []), ...m.definitions.flatMap(d => d.synonyms || [])])].slice(0, 8);
+      const ant = [...new Set([...(m.antonyms || []), ...m.definitions.flatMap(d => d.antonyms || [])])].slice(0, 6);
+      return `<div class="dict-pos">${esc(m.partOfSpeech)}</div><ol>${m.definitions.slice(0, 5).map(d => `<li>${esc(d.definition)}${d.example ? `<span class="dict-ex">“${esc(d.example)}”</span>` : ''}</li>`).join('')}</ol>
+        ${syn.length ? `<div class="hint" style="margin:8px 0 0">Similar words</div><div class="chips">${syn.map(s => `<button type="button" class="chip" data-w="${esc(s)}">${esc(s)}</button>`).join('')}</div>` : ''}
+        ${ant.length ? `<div class="hint" style="margin:8px 0 0">Opposites</div><div class="chips">${ant.map(s => `<button type="button" class="chip" data-w="${esc(s)}">${esc(s)}</button>`).join('')}</div>` : ''}`;
+    }).join('')}`;
+  $$('.chip', out).forEach(c => c.addEventListener('click', () => { const i = $('#dict-form input'); if (i) i.value = c.dataset.w; lookup(c.dataset.w); }));
+  const say = $('#say', out); if (say) say.addEventListener('click', () => new Audio(audio).play().catch(() => toast('Sound needs internet')));
+}
+$('#b-dict').addEventListener('click', openDictionary);
+
+/* ---------- find a date ---------- */
+function openFind() {
+  const y = new Date().getFullYear();
+  const d = openDrawer('find', 'Find a date', `
+    <p class="hint">A year is enough. Add a month to open its first page, and a day for that exact page.</p>
+    <form id="fd" class="row" autocomplete="off">
+      <label class="field">Year<input name="y" type="number" inputmode="numeric" min="1900" max="2200" value="${y}" required></label>
+      <label class="field">Month<select name="m"><option value="">Any month</option>${MONTHS.map((m, i) => `<option value="${i + 1}">${m}</option>`).join('')}</select></label>
+      <label class="field">Day<input name="d" type="number" inputmode="numeric" min="1" max="31" placeholder="Any day" disabled></label>
+      <button class="btn primary" type="submit">Open page</button>
+    </form>
+    <div class="actions"><button type="button" class="btn" data-q="today">Today</button><button type="button" class="btn" data-q="first">First page</button><button type="button" class="btn" data-q="last">Latest page</button></div>
+    <div class="fd-out"></div>`);
+  const f = $('#fd', d);
+  f.m.addEventListener('change', () => { f.d.disabled = !f.m.value; if (!f.m.value) f.d.value = ''; });
+  f.addEventListener('submit', e => { e.preventDefault(); findDate(+f.y.value, +f.m.value || 0, +f.d.value || 0); });
+  $$('[data-q]', d).forEach(b => b.addEventListener('click', () => {
+    const q = b.dataset.q;
+    if (!order.length) return showFind(`<p class="msg">Your journal has no pages yet.</p><div class="actions"><button class="btn primary" type="button" id="fd-new">Start today's page</button></div>`, () => $('#fd-new').addEventListener('click', () => { closeDrawer(); setTimeout(openNewPage, 250); }));
+    if (q === 'today') { const t = new Date(); return findDate(t.getFullYear(), t.getMonth() + 1, t.getDate()); }
+    go(q === 'first' ? 0 : order.length - 1);
+  }));
+}
+function showFind(html, after) { const o = $('.fd-out', drawer); if (o) { o.innerHTML = html; after && after(); } }
+function go(idx) {
+  if (idx === cur) { closeDrawer(); return toast("You're already on that page"); }
+  closeDrawer(); setTimeout(() => flipTo(idx), 260);
+}
+function findDate(y, m, d) {
+  if (!y || y < 1900 || y > 2200) return showFind(`<p class="msg err">Enter a year, like ${new Date().getFullYear()}.</p>`);
+  if (d && !m) return showFind(`<p class="msg err">Pick a month to go with that day.</p>`);
+  if (m && d) { const dim = new Date(y, m, 0).getDate(); if (d < 1 || d > dim) return showFind(`<p class="msg err">${MONTHS[m - 1]} ${y} has ${dim} days.</p>`); }
+  const prefix = d ? isoOf(y, m, d) : m ? `${y}-${pad(m)}` : `${y}`;
+  const idx = order.findIndex(p => p.date.startsWith(prefix));
+  if (idx >= 0) return go(idx);
+  const label = d ? longDate(prefix) : m ? `${MONTHS[m - 1]} ${y}` : `${y}`;
+  const start = d ? prefix : isoOf(y, m || 1, 1);
+  let near = order.findIndex(p => p.date >= start); if (near < 0) near = order.length - 1;
+  showFind(`<p class="msg">No pages from ${esc(label)} yet.</p>
+    <div class="actions"><button class="btn primary" type="button" id="fd-make">Start a page on ${esc(longDate(start))}</button>
+    ${order.length ? `<button class="btn" type="button" id="fd-near">Go to nearest page (${esc(longDate(order[near].date))})</button>` : ''}</div>`, () => {
+    $('#fd-make').addEventListener('click', () => { const p = createPage(start); closeDrawer(); setTimeout(() => flipTo(order.indexOf(p)), 260); });
+    $('#fd-near')?.addEventListener('click', () => go(near));
+  });
+}
+$('#b-find').addEventListener('click', openFind);
+
+/* ---------- menu ---------- */
+function openMenu() {
+  const d = openDrawer('menu', 'Journal', `<div class="menu-list">
+    <button type="button" data-m="cover">Cover details<small>Title, the two names and the line under them</small></button>
+    <button type="button" data-m="account">Account and sync<small>${esc(syncState().t)}</small></button>
+    <button type="button" data-m="backup">Download a backup<small>Saves every page as one file</small></button>
+    <button type="button" data-m="restore">Restore from a backup<small>Adds pages from a backup file</small></button>
+    ${cur >= 0 ? `<button type="button" data-m="tear" class="danger">Tear out this page<small>Removes it from every device</small></button>` : ''}
+    <input type="file" accept="application/json,.json" hidden id="restore-file"></div>`);
+  $$('[data-m]', d).forEach(b => b.addEventListener('click', () => {
+    const m = b.dataset.m;
+    if (m === 'cover') openCover();
+    if (m === 'account') openAccount();
+    if (m === 'backup') downloadBackup();
+    if (m === 'restore') $('#restore-file', d).click();
+    if (m === 'tear') confirmTear();
+  }));
+  $('#restore-file', d).addEventListener('change', e => { const f = e.target.files[0]; if (f) restoreBackup(f); });
+}
+$('#b-menu').addEventListener('click', openMenu);
+
+function openCover() {
+  const s = state.settings;
+  const d = openDrawer('cover', 'Cover details', `
+    <div class="row"><label class="field">Title<input name="title" maxlength="28" value="${esc(s.title)}"></label></div>
+    <div class="row" style="margin-top:10px"><label class="field">First name<input name="name1" maxlength="20" value="${esc(s.name1)}"></label>
+    <label class="field">Second name<input name="name2" maxlength="20" value="${esc(s.name2)}"></label></div>
+    <div class="row" style="margin-top:10px"><label class="field">Line under the names<input name="tagline" maxlength="48" value="${esc(s.tagline)}"></label></div>
+    <p class="hint" style="margin-top:10px">Changes show on the cover straight away. Leave the second name empty to show one name.</p>`);
+  $$('input', d).forEach(i => i.addEventListener('input', () => {
+    s[i.name] = i.value; touchSettings();
+    const cov = $('.leaf.active.is-cover .sheet'); if (cov) cov.innerHTML = coverHTML();
+  }));
+}
+function confirmTear() {
+  const p = order[cur];
+  const d = openDrawer('tear', 'Tear out this page?', `<p class="hint">The page from ${esc(longDate(p.date))} will be removed from this device and every device you sync with.</p>
+    <div class="actions"><button class="btn" type="button" id="tear-yes" style="color:var(--danger);border-color:var(--danger)">Tear it out</button><button class="btn" type="button" id="tear-no">Keep it</button></div>`);
+  $('#tear-no', d).addEventListener('click', closeDrawer);
+  $('#tear-yes', d).addEventListener('click', async () => {
+    closeDrawer();
+    const prevId = order[cur - 1]?.id;
+    p.deleted = true; p.text = ''; p.stickers = []; touchPage(p);
+    const leaf = $('.leaf.active', book);
+    if (!reduceMotion) await leaf.animate([{ transform:'none', opacity:1 }, { transform:'translate(30px,60px) rotate(8deg)', opacity:0 }], { duration:450, easing:'ease-in' }).finished;
+    curId = null; refreshOrder();
+    mountStatic(prevId ? order.findIndex(x => x.id === prevId) : -1);
+    toast('Page torn out');
+  });
+}
+function downloadBackup() {
+  flushAll();
+  const data = JSON.stringify({ app:'midnight-pages', version:1, exportedAt:new Date().toISOString(), settings:state.settings, pages:state.pages });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([data], { type:'application/json' }));
+  a.download = `journal-backup-${todayISO()}.json`; document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000); toast('Backup downloaded');
+}
+async function restoreBackup(file) {
+  try {
+    const j = JSON.parse(await file.text()); if (!j.pages) throw 0;
+    let n = 0;
+    for (const [id, raw] of Object.entries(j.pages)) {
+      const r = normalizePage({ ...raw, id }), l = state.pages[id];
+      if (!l || r.updatedAt > l.updatedAt) { state.pages[id] = r; n++; pushPage(r); }
+    }
+    saveLocalNow(); refreshOrder(); closeDrawer(); mountStatic(cur); toast(`Restored ${n} page${n === 1 ? '' : 's'}`);
+  } catch { toast("That file isn't a journal backup."); }
+}
+
+/* ---------- sync (Firebase) ---------- */
+let fb = { ready:false, user:null, unsubs:[] };
+function syncState() {
+  if (!FIREBASE_CONFIG) return { k:'local', t:'Saved on this device only. Sync is not set up yet.' };
+  if (!fb.ready) return { k:'off', t:navigator.onLine ? 'Connecting…' : 'Offline. Everything is saved on this device.' };
+  if (!fb.user) return { k:'out', t:'Not signed in. Pages are saved on this device only.' };
+  if (!navigator.onLine) return { k:'off', t:'Offline. Changes will sync when you reconnect.' };
+  return { k:'on', t:'Synced as ' + fb.user.email };
+}
+function updateSyncUI() { const s = syncState(), b = $('#b-sync'); b.dataset.k = s.k; b.title = s.t; b.setAttribute('aria-label', s.t); }
+addEventListener('online', updateSyncUI); addEventListener('offline', updateSyncUI);
+$('#b-sync').addEventListener('click', openAccount);
+
+async function initSync() {
+  updateSyncUI();
+  if (!FIREBASE_CONFIG) return;
+  try {
+    const base = `https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/`;
+    const [A, Au, F] = await Promise.all([import(base + 'firebase-app.js'), import(base + 'firebase-auth.js'), import(base + 'firebase-firestore.js')]);
+    const app = A.initializeApp(FIREBASE_CONFIG);
+    const auth = Au.getAuth(app);
+    let db;
+    try { db = F.initializeFirestore(app, { localCache:F.persistentLocalCache({ tabManager:F.persistentMultipleTabManager() }) }); }
+    catch { db = F.getFirestore(app); }
+    fb = { ready:true, Au, F, auth, db, user:null, unsubs:[] };
+    Au.onAuthStateChanged(auth, u => {
+      fb.user = u; fb.unsubs.forEach(x => x()); fb.unsubs = [];
+      if (u) startListeners();
+      updateSyncUI(); if (drawerName === 'account') openAccount();
+    });
+  } catch (err) { console.warn('Sync unavailable', err); updateSyncUI(); }
+}
+const clean = o => JSON.parse(JSON.stringify(o));
+function pushPage(p) {
+  if (!fb.user) return;
+  const { F, db } = fb;
+  F.setDoc(F.doc(db, 'users', fb.user.uid, 'pages', p.id), clean(p)).catch(e => console.warn(e));
+}
+function pushSettings() {
+  settingsTimer = null; if (!fb.user) return;
+  const { F, db } = fb;
+  F.setDoc(F.doc(db, 'users', fb.user.uid, 'meta', 'settings'), clean(state.settings)).catch(e => console.warn(e));
+}
+function startListeners() {
+  const { F, db } = fb, uid = fb.user.uid;
+  let first = true;
+  fb.unsubs.push(F.onSnapshot(F.collection(db, 'users', uid, 'pages'), snap => {
+    let changed = false; const remote = new Map();
+    snap.forEach(d => remote.set(d.id, d.data()));
+    for (const [id, r] of remote) {
+      const l = state.pages[id];
+      if (!l || (r.updatedAt || 0) > (l.updatedAt || 0)) { state.pages[id] = normalizePage({ ...r, id }); changed = true; }
+    }
+    if (first) {
+      first = false;
+      for (const p of Object.values(state.pages)) { const r = remote.get(p.id); if (!r || (r.updatedAt || 0) < p.updatedAt) pushPage(p); }
+    }
+    if (changed) { saveLocalNow(); onRemoteChange(); }
+    updateSyncUI();
+  }, err => { console.warn(err); toast('Sync stopped: ' + (err.code || 'unknown error')); }));
+  let firstS = true;
+  fb.unsubs.push(F.onSnapshot(F.doc(db, 'users', uid, 'meta', 'settings'), d => {
+    const r = d.data();
+    if (r && (r.updatedAt || 0) > (state.settings.updatedAt || 0)) {
+      state.settings = { ...DEFAULT_SETTINGS, ...r, style:{ ...DEFAULT_STYLE, ...(r.style || {}) } }; saveLocalNow();
+      const cov = $('.leaf.active.is-cover .sheet'); if (cov) cov.innerHTML = coverHTML();
+    } else if (firstS && (!r || (r.updatedAt || 0) < (state.settings.updatedAt || 0))) pushSettings();
+    firstS = false;
+  }));
+}
+function onRemoteChange() {
+  const keepId = curId; refreshOrder();
+  if (flipping) return;
+  if (keepId && cur < 0) { mountStatic(order.length ? order.length - 1 : -1); return; }
+  const ed = $('.leaf.active .editor');
+  const editing = ed && document.activeElement === ed;
+  if (cur >= 0 && !editing && !selected) mountStatic(cur); else updateFolio();
+}
+
+function openAccount() {
+  if (!FIREBASE_CONFIG) {
+    openDrawer('account', 'Account and sync', `<p class="hint">Right now your journal lives on this device only, and it works fully offline.</p>
+      <p class="hint">To keep your phone and laptop in step with one email account, add your free Firebase keys to <b>index.html</b>. The README file walks through it step by step, in about 15 minutes.</p>
+      <p class="hint">Until then, you can move pages between devices with Download a backup and Restore from a backup in the menu.</p>`);
+    return;
+  }
+  if (!fb.ready) { openDrawer('account', 'Account and sync', `<p class="hint">${navigator.onLine ? 'Connecting to sync…' : 'You are offline. Connect to the internet once to sign in. After that, writing works offline and syncs when you are back online.'}</p>`); return; }
+  if (fb.user) {
+    const d = openDrawer('account', 'Account and sync', `<p class="hint">Signed in as <b style="color:var(--bone)">${esc(fb.user.email)}</b>.</p>
+      <p class="hint">${esc(syncState().t)}. Sign in with the same email on your phone and laptop to see the same journal on both.</p>
+      <div class="actions"><button class="btn" type="button" id="ac-out">Sign out</button></div>`);
+    $('#ac-out', d).addEventListener('click', async () => { flushAll(); await fb.Au.signOut(fb.auth); toast('Signed out. Your pages stay on this device.'); });
+    return;
+  }
+  const d = openDrawer('account', 'Account and sync', `<p class="hint">Sign in with your email to keep this journal the same on your phone and laptop.</p>
+    <form id="ac" autocomplete="on">
+      <div class="row"><label class="field">Email<input name="email" type="email" autocomplete="email" required></label></div>
+      <div class="row" style="margin-top:10px"><label class="field">Password<input name="pw" type="password" autocomplete="current-password" minlength="6" required></label></div>
+      <div class="actions"><button class="btn primary" type="submit">Sign in</button><button class="btn" type="button" id="ac-new">Create account</button></div>
+      <p style="margin-top:12px"><button class="link" type="button" id="ac-reset">Forgot password?</button></p>
+      <p class="msg" id="ac-msg"></p>
+    </form>`);
+  const f = $('#ac', d), msg = $('#ac-msg', d);
+  const errText = e => ({
+    'auth/invalid-credential':"That email and password don't match.", 'auth/wrong-password':"That email and password don't match.",
+    'auth/user-not-found':'No account with that email yet. Tap Create account.', 'auth/email-already-in-use':'That email already has an account. Tap Sign in.',
+    'auth/weak-password':'Use a password with at least 6 characters.', 'auth/invalid-email':'Check the email address.',
+    'auth/network-request-failed':'No internet. Connect once to sign in.', 'auth/too-many-requests':'Too many tries. Wait a minute and try again.',
+  }[e.code] || ('Sign-in failed: ' + (e.code || e.message)));
+  const run = async fn => { msg.className = 'msg'; msg.textContent = 'One moment…'; try { await fn(); } catch (e) { msg.className = 'msg err'; msg.textContent = errText(e); } };
+  f.addEventListener('submit', e => { e.preventDefault(); run(() => fb.Au.signInWithEmailAndPassword(fb.auth, f.email.value.trim(), f.pw.value)); });
+  $('#ac-new', d).addEventListener('click', () => { if (!f.reportValidity()) return; run(() => fb.Au.createUserWithEmailAndPassword(fb.auth, f.email.value.trim(), f.pw.value)); });
+  $('#ac-reset', d).addEventListener('click', () => {
+    if (!f.email.value.trim()) { msg.className = 'msg err'; msg.textContent = 'Type your email first.'; return; }
+    run(async () => { await fb.Au.sendPasswordResetEmail(fb.auth, f.email.value.trim()); msg.className = 'msg'; msg.textContent = 'Reset link sent. Check your inbox.'; });
+  });
+}
+
+/* ---------- start ---------- */
+refreshOrder();
+layout(true);
+mountStatic(-1);
+initSync();
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});
+document.fonts?.ready?.then(() => { if (cur < 0) mountStatic(-1); });
+</script>
+</body>
+</html>
