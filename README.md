@@ -15,9 +15,10 @@ A journal app that looks and flips like a real book, works with no internet, and
 
 | You want to… | Do this |
 |---|---|
-| Open the book | Tap **New page** on the cover, or swipe right-to-left to open your latest page |
+| Open the book | Swipe the cover right-to-left (or press → on a laptop) to open at your first page. Tap **New page** to go straight to a fresh page |
 | Turn pages | Swipe right-to-left (next) or left-to-right (back). On a laptop, use the arrow keys or the buttons |
-| Start a fresh page | Tap **New page** at the bottom. On your last page, swiping forward also makes a new page |
+| Start a fresh page | Only the **New page** button makes a new page. Each page holds 18 lines; when it's full, tap New page to continue |
+| Laptop view | On a wide screen the journal opens as a two-page spread, like a real book |
 | Set the page's date | Tap the date at the top of the page. It stays on that page, and pages sort by date |
 | Change page / line / ink colours, handwriting, size | **Style** at the top |
 | Add stickers | **Stickers** at the top. Drag to move; tap a sticker for size, turn, remove |
